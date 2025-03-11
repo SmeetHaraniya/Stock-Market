@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="trade-container">
+        <div class="card"> 
+            <h2 class="ui header"><i class="fas fa-dollar-sign mr-2"></i>Buy/Sell  Stocks</h2>
+
+            <form class="ui form" id="trade-form">
+                <div class="field">
+                    <label>Stock Symbol</label>
+                    <input type="text" id="symbol" name="symbol" placeholder="Enter Stock Symbol (e.g. AAPL)">
+                </div>
+
+                <div class="field">
+                    <label>Shares</label>
+                    <input type="number" id="shares" name="shares" min="1" placeholder="Enter number of shares">
+                </div>
+
+                <div class="field">
+                    <label>Price Per Share ($)</label>
+                    <input type="text" id="price" name="price" readonly placeholder="Fetching price...">
+                </div>
+
+                <!-- Buy & Sell Buttons -->
+                <div style="margin-top: 20px;">
+                    <button id="buy-btn" class="ui green button" style="width: 100px; font-size: 1.2em; margin-right: 5px;">Buy</button>
+                    <button id="sell-btn" class="ui red button" style="width: 100px; font-size: 1.2em;" >Sell</button>
+                </div>
+
+                <div class="ui error message" id="error-message" style="display: none;"></div>
+                <div class="ui success message" id="success-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            let currentUserId = null;
+        
+            // Fetch current user ID on page load
+            fetchUserId();
+        
+            function fetchUserId() {
+                $.ajax({
+                    url: "/get_current_user",
+                    type: "GET",
+                    success: function (response) {
+                        if (response.user_id) {
+                            currentUserId = response.user_id;
+                        } else {
+                            alert("User not logged in!");
+                            window.location.href = "/login";
+                        }
+                    }
+                });
+            }
+        
+            // Fetch stock price when symbol is entered
+            $("#symbol").on("change", function () {
+                let symbol = $(this).val().toUpperCase();
+                if (symbol) {
+                    fetchStockPrice(symbol);
+                }
+            });
+        
+            function fetchStockPrice(symbol) {
+                $.ajax({
+                    url: `/get-stock-price/${symbol}`,
+                    type: "GET",
+                    success: function (response) {
+                        if (response.price) {
+                            $("#price").val(response.price.toFixed(2));
+                        } else {
+                            $("#price").val("Invalid Symbol");
+                        }
+                    },
+                    error: function () {
+                        $("#price").val("Error fetching price");
+                    }
+                });
+            }
+        
+            // Handle Buy & Sell actions
+            $("#buy-btn, #sell-btn").on("click", function (event) {
+                event.preventDefault();
+        
+                let symbol = $("#symbol").val().toUpperCase();
+                let shares = $("#shares").val();
+                let price = $("#price").val();
+                let transactionType = $(this).attr("id") === "buy-btn" ? "BUY" : "SELL";
+        
+                if (!symbol || !shares || !price || isNaN(shares) || shares <= 0 || isNaN(price)) {
+                    showMessage("error", "Please enter valid stock details.");
+                    return;
+                }
+        
+                if (!currentUserId) {
+                    showMessage("error", "User not authenticated. Please log in.");
+                    return;
+                }
+        
+                $.ajax({
+                    url: transactionType === "BUY" ? "/buy" : "/sell",
+                    type: "POST",
+                    data: {
+                        symbol: symbol,
+                        quantity: shares,
+                        price: price
+                    },
+                    success: function (response) {
+                        showMessage("success", response.message);
+                    },
+                    error: function (xhr) {
+                        let errorMsg = xhr.responseJSON?.error || "Transaction failed.";
+                        showMessage("error", errorMsg);
+                    }
+                });
+            });
+        
+            function showMessage(type, message) {
+                if (type === "success") {
+                    $("#success-message").text(message).fadeIn();
+                    $("#error-message").hide();
+                } else {
+                    $("#error-message").text(message).fadeIn();
+                    $("#success-message").hide();
+                }
+        
+                setTimeout(() => {
+                    $(".message").fadeOut();
+                }, 3000);
+            }
+        });
+        
+    </script>
+{% endblock %}

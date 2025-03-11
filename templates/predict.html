@@ -1,0 +1,196 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h1 id="stock-name" class="ui header"></h1>
+<table class="ui celled striped table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Open</th>
+            <th>High</th>
+            <th>Low</th>
+            <th>Close</th>
+            <th>Volume</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+
+
+<h1 class="ui header">Prediction Results</h1>
+<div id="prediction-container" style="
+        background: #fff;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 8px;
+        box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+    ">
+    <p style="font-size: 16px; font-weight: bold; color: #333;">Predicted Trend:</p>
+    <p id="prediction-result" style="font-size: 20px; color: #28a745; font-weight: bold;">-</p>
+    <p style="color: #666; font-size: 14px;">This predicted trend is based on the latest market trends,
+        sentiment analysis, and technical indicators.</p>
+</div>
+
+
+<!-- News Input Section -->
+<h2 class="ui header" style="margin-top: 30px;">Enter Latest News</h2>
+<form id="news-form" class="ui form" style="margin-bottom: 20px;">
+    <div id="news-container">
+        <div class="field">
+            <input type="text" name="news" placeholder="Enter news headline...">
+        </div>
+    </div>
+    <button type="button" id="add-news" class="ui button">➕ Add Another News</button>
+    <button type="submit" class="ui primary button">Submit</button>
+</form>
+
+
+<h1 class="ui header">News Prediction Results</h1>
+<div id="prediction-container" style="
+        background: #fff;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 8px;
+        box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+    ">
+    <p style="font-size: 16px; font-weight: bold; color: #333;">Predicted Trend:</p>
+    <p id="news-prediction-result" style="font-size: 20px; color: #28a745; font-weight: bold;">-</p>
+    <p style="color: #666; font-size: 14px;">
+        This predicted trend is based on the latest market trends, sentiment analysis, and technical indicators.
+    </p>
+</div>
+
+
+<!-- <h2>Stock Prediction</h2>
+        <form id="prediction-form">
+            <label>Close Price: <input type="number" id="close" step="0.01"></label>
+            <label>High Price: <input type="number" id="high" step="0.01"></label>
+            <label>Low Price: <input type="number" id="low" step="0.01"></label>
+            <label>Open Price: <input type="number" id="open" step="0.01"></label>
+            <label>Volume: <input type="number" id="volume"></label>
+            <label>Tweet Count: <input type="number" id="tweet_count"></label>
+            <label>Sentiment Score: <input type="number" id="sentiment" step="0.01"></label>
+            <button type="submit">Predict</button>
+        </form>
+        <h3>Prediction: <span id="prediction-result">-</span></h3> -->
+
+
+<script>
+    window.onload = async function () {
+        let stockData = JSON.parse(localStorage.getItem("latestStockData"));
+        document.getElementById("stock-name").innerText = stockData.stock_id + " Last day details"
+        if (stockData) {
+            document.querySelector("td:nth-child(1)").innerText = stockData.date || "-";
+            document.querySelector("td:nth-child(2)").innerText = stockData.open || "-";
+            document.querySelector("td:nth-child(3)").innerText = stockData.high || "-";
+            document.querySelector("td:nth-child(4)").innerText = stockData.low || "-";
+            document.querySelector("td:nth-child(5)").innerText = stockData.close || "-";
+            document.querySelector("td:nth-child(6)").innerText = stockData.volume || "-";
+        } else {
+            console.log("No stock data found in localStorage.");
+        }
+
+        console.log(stockData)
+        stockData = {
+            Close: stockData.close,
+            High: stockData.high,
+            Low: stockData.low,
+            Open: stockData.open,
+            Volume: stockData.volume,
+            Tweet_Count: 15000,
+            Sentiment_Score: 0.9
+        }
+
+        const response = await fetch("http://127.0.0.1:8000/predict", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(stockData)
+        });
+
+        const result = await response.json();
+        console.log(result, -1)
+        document.getElementById("prediction-result").innerText = result.prediction;
+    };
+
+
+
+    document.getElementById("add-news").addEventListener("click", function () {
+        let newsContainer = document.getElementById("news-container");
+        let newField = document.createElement("div");
+        newField.classList.add("field");
+        newField.innerHTML = '<input type="text" name="news" placeholder="Enter another news headline...">';
+        newsContainer.appendChild(newField);
+    });
+    
+    document.getElementById("news-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        let newsElements = document.querySelectorAll('input[name="news"]');
+        let newsList = Array.from(newsElements).map(input => input.value.trim()).filter(n => n.length > 0);
+        let tweetCount = newsList.length;
+
+        if (newsList.length === 0) {
+            alert("Please enter at least one news headline.");
+            return;
+        }
+
+        // Step 1: Send news to analyze sentiment
+        const sentimentResponse = await fetch("http://127.0.0.1:8000/analyze_sentiment", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ news: newsList })
+        });
+
+        const sentimentData = await sentimentResponse.json();
+        let sentimentScore = sentimentData.sentiment_score;
+        alert(sentimentScore)
+        // Step 2: Fetch latest stock data from localStorage
+        let stockData = JSON.parse(localStorage.getItem("latestStockData"));
+        if (!stockData) {
+            alert("No stock data available.");
+            return;
+        }
+
+        // Step 3: Prepare data for prediction
+        let predictionData = {
+            Close: stockData.close,
+            High: stockData.high,
+            Low: stockData.low,
+            Open: stockData.open,
+            Volume: stockData.volume,
+            Tweet_Count: tweetCount,
+            Sentiment_Score: sentimentScore
+        };
+
+        // Step 4: Send data for prediction
+        const predictionResponse = await fetch("http://127.0.0.1:8000/predict", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(predictionData)
+        });
+
+        const predictionResult = await predictionResponse.json();
+        document.getElementById("news-prediction-result").innerText = predictionResult.prediction;
+    });
+
+
+</script>
+
+
+{% endblock %}

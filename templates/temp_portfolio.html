@@ -1,0 +1,404 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto p-4">
+  <h1 class="ui header text-2xl font-bold mb-4">
+    <i class="fas fa-briefcase mr-2"></i>Stock Portfolio Dashboard
+  </h1>
+  
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Available Funds</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(portfolio.funds) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Total Investment</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(total_investment) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Portfolio Value</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(portfolio_value) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Total P/L</h3>
+      <p class="text-2xl font-bold {% if profit_loss >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+        {{ "+" if profit_loss >= 0 else "" }}{{ "%.2f"|format(profit_loss) }}%
+      </p>
+    </div>
+  </div>
+  
+  <!-- Charts and Holdings Section -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Portfolio Allocation Chart -->
+    <div class="lg:col-span-1 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Portfolio Allocation</h2>
+      <div class="h-64">
+        <canvas id="portfolioAllocationChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Performance Chart -->
+    <div class="lg:col-span-2 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Portfolio Performance</h2>
+      <div class="h-64">
+        <canvas id="performanceChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Holdings Table -->
+    <div class="lg:col-span-3 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">My Holdings</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 border-b text-left">Stock</th>
+              <th class="py-3 px-4 border-b text-right">Quantity</th>
+              <th class="py-3 px-4 border-b text-right">Avg Price</th>
+              <th class="py-3 px-4 border-b text-right">Current Price</th>
+              <th class="py-3 px-4 border-b text-right">Market Value</th>
+              <th class="py-3 px-4 border-b text-right">P/L</th>
+              <th class="py-3 px-4 border-b text-right">P/L %</th>
+              <th class="py-3 px-4 border-b text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stock, details in portfolio.stocks.items() %}
+            <tr class="hover:bg-gray-50 border-b">
+              <td class="py-3 px-4">
+                <div class="font-medium">{{ stock }}</div>
+                <div class="text-sm text-gray-500">{{ stock_names.get(stock, "") }}</div>
+              </td>
+              <td class="py-3 px-4 text-right">{{ details.quantity }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(details.avg_price) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(current_prices.get(stock, 0)) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(details.quantity * current_prices.get(stock, 0)) }}</td>
+              {% set pl = (current_prices.get(stock, 0) - details.avg_price) * details.quantity %}
+              {% set pl_percent = ((current_prices.get(stock, 0) - details.avg_price) / details.avg_price * 100) if details.avg_price > 0 else 0 %}
+              <td class="py-3 px-4 text-right {% if pl >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                {{ "+" if pl >= 0 else "" }}{{ "%.2f"|format(pl) }}
+              </td>
+              <td class="py-3 px-4 text-right {% if pl_percent >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                {{ "+" if pl_percent >= 0 else "" }}{{ "%.2f"|format(pl_percent) }}%
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm" 
+                        onclick="window.location.href='/buy?symbol={{ stock }}'">
+                  Buy
+                </button>
+                <button class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm ml-1"
+                        onclick="window.location.href='/sell?symbol={{ stock }}'">
+                  Sell
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Recent Transactions -->
+    <div class="lg:col-span-3 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Recent Transactions</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 border-b text-left">Date</th>
+              <th class="py-3 px-4 border-b text-left">Action</th>
+              <th class="py-3 px-4 border-b text-left">Symbol</th>
+              <th class="py-3 px-4 border-b text-right">Quantity</th>
+              <th class="py-3 px-4 border-b text-right">Price</th>
+              <th class="py-3 px-4 border-b text-right">Total</th>
+              <th class="py-3 px-4 border-b text-right">P/L</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for transaction in recent_transactions %}
+            <tr class="hover:bg-gray-50 border-b">
+              <td class="py-3 px-4">{{ transaction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-1 rounded-full text-xs font-medium 
+                  {% if transaction.action == 'BUY' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                  {{ transaction.action }}
+                </span>
+              </td>
+              <td class="py-3 px-4">{{ transaction.symbol }}</td>
+              <td class="py-3 px-4 text-right">{{ transaction.quantity }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(transaction.price) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(transaction.price * transaction.quantity) }}</td>
+              <td class="py-3 px-4 text-right">{{ transaction.profit_loss }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<canvas id="portfolioAllocationChart" width="400" height="400"></canvas>
+
+<script>
+  // Portfolio Allocation Chart
+  const allocationCtx = document.getElementById('portfolioAllocationChart').getContext('2d');
+  const allocationChart = new Chart(allocationCtx, {
+    type: 'doughnut',
+    data: {
+      labels: [{% for stock, details in portfolio.stocks.items() %}'{{ stock }}',{% endfor %}],
+      datasets: [{
+        data: [{% for stock, details in portfolio.stocks.items() %}{{ details.quantity * current_prices.get(stock, 0) }},{% endfor %}],
+        backgroundColor: [
+          '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
+          '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+        }
+      }
+    }
+  });
+
+  const labels = [{% for stock, details in portfolio.stocks.items() %}'{{ stock }}'{% if not loop.last %},{% endif %}{% endfor %}];
+  const data = [{% for stock, details in portfolio.stocks.items() %}{{ details.quantity * current_prices.get(stock, 0) }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+  console.log('Labels:', labels);
+  console.log('Data:', data);
+
+
+  // Performance Chart
+  const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+  const performanceChart = new Chart(performanceCtx, {
+    type: 'line',
+    data: {
+      labels: {{ performance_dates|safe }},
+      datasets: [{
+        label: 'Portfolio Value',
+        data: {{ performance_values|safe }},
+        borderColor: '#4F46E5',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return `$${context.raw.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          beginAtZero: false,
+          ticks: {
+            callback: function(value) {
+              return '$' + value;
+            }
+          }
+        }
+      }
+    }
+  });
+</script>
+
+{% endblock %}
+
+
+
+<!-- 
+###################### Backend ################################
+temp_user = {
+    "username":"demo_user",
+        "email":"demo@example.com",
+        "password_hash":"hashed_password",
+        "cash":5000.00
+}
+
+temp_user = User(**temp_user)
+
+# @app.get("/portfolio")
+def get_portfolio(request: Request, current_user: User = temp_user):
+    # Get user's stock holdings
+    portfolio = {
+        "funds": current_user.cash,
+        "stocks": {}
+    }
+    
+    # Fetch user's stock holdings from database
+    holdings = get_user_holdings(current_user.username)
+    
+    # Get current prices (replace with actual API call in production)
+    current_prices = get_current_prices([holding.company_symbol for holding in holdings])
+    
+    # Get stock names
+    stock_names = get_stock_names([holding.company_symbol for holding in holdings])
+    
+    # Calculate portfolio metrics
+    total_investment = 0
+    portfolio_value = current_user.cash
+    
+    for holding in holdings:
+        symbol = holding.company_symbol
+        portfolio["stocks"][symbol] = {
+            "quantity": holding.number_of_shares,
+            "avg_price": holding.avg_price
+        }
+        
+        # Calculate investment and current value
+        investment = holding.number_of_shares * holding.avg_price
+        current_value = holding.number_of_shares * current_prices.get(symbol, 0)
+        
+        total_investment += investment
+        portfolio_value += current_value
+    
+    # Calculate profit/loss percentage
+    profit_loss = ((portfolio_value - current_user.cash - total_investment) / total_investment * 100) if total_investment > 0 else 0
+    
+    # Get recent transactions
+    recent_transactions = get_recent_transactions(current_user.username, limit=10)
+    
+    # Generate performance data for chart (replace with actual historical data in production)
+    performance_dates, performance_values = generate_performance_data()
+    
+    return templates.TemplateResponse("temp_portfolio.html", {
+        "request": request,
+        "portfolio": portfolio,
+        "current_prices": current_prices,
+        "stock_names": stock_names,
+        "total_investment": total_investment,
+        "portfolio_value": portfolio_value,
+        "profit_loss": profit_loss,
+        "recent_transactions": recent_transactions,
+        "performance_dates": performance_dates,
+        "performance_values": performance_values
+    })
+
+# Helper functions
+def get_user_holdings(username: str):
+    # Replace with actual database query
+    # This is a placeholder implementation
+    return [
+        StockHolding(user_id=username, company_symbol="AAPL", number_of_shares=10, avg_price=150.50),
+        StockHolding(user_id=username, company_symbol="MSFT", number_of_shares=5, avg_price=280.75),
+        StockHolding(user_id=username, company_symbol="GOOGL", number_of_shares=2, avg_price=2750.10),
+    ]
+
+def get_current_prices(symbols: list):
+    # Replace with actual API call to get current prices
+    # This is a placeholder implementation
+    return {
+        "AAPL": 165.30,
+        "MSFT": 290.20,
+        "GOOGL": 2800.50,
+        "AMZN": 3300.75,
+        "META": 330.25,
+    }
+
+def get_stock_names(symbols: list):
+    # Replace with actual database query or API call
+    # This is a placeholder implementation
+    return {
+        "AAPL": "Apple Inc.",
+        "MSFT": "Microsoft Corporation",
+        "GOOGL": "Alphabet Inc.",
+        "AMZN": "Amazon.com, Inc.",
+        "META": "Meta Platforms, Inc.",
+    }
+
+def get_recent_transactions(username: str, limit: int = 10):
+    # Replace with actual database query
+    # This is a placeholder implementation
+    return [
+        Transaction(
+            user_id=username,
+            action="BUY",
+            symbol="AAPL",
+            quantity=2,
+            price=160.25,
+            timestamp=datetime.now() - timedelta(days=1),
+            profit_loss="N/A"
+        ),
+        Transaction(
+            user_id=username,
+            action="SELL",
+            symbol="MSFT",
+            quantity=1,
+            price=295.50,
+            timestamp=datetime.now() - timedelta(days=3),
+            profit_loss="+$14.75"
+        ),
+        Transaction(
+            user_id=username,
+            action="BUY",
+            symbol="GOOGL",
+            quantity=1,
+            price=2730.80,
+            timestamp=datetime.now() - timedelta(days=5),
+            profit_loss="N/A"
+        ),
+    ]
+
+def generate_performance_data():
+    # Generate sample performance data for the chart
+    # Replace with actual historical data in production
+    dates = []
+    values = []
+    base_value = 10000
+    current_value = base_value
+    
+    for i in range(30, 0, -1):
+        date = (datetime.now() - timedelta(days=i)).strftime('%b %d')
+        dates.append(date)
+        
+        # Random daily change between -2% and +2%
+        change = random.uniform(-0.02, 0.02)
+        current_value = current_value * (1 + change)
+        values.append(round(current_value, 2))
+    
+    return dates, values
+
+# Authentication dependency
+# def get_current_user():
+    # Replace with actual authentication logic
+    # This is a placeholder implementation
+    return User(
+        username="demo_user",
+        email="demo@example.com",
+        password_hash="hashed_password",
+        cash=5000.00
+    )
+
+################################################################################
+
+-->

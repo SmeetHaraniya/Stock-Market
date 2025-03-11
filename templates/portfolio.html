@@ -1,0 +1,299 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+  <h1 class="ui header text-2xl font-bold mb-4">
+    <i class="fas fa-briefcase mr-2"></i>Stock Portfolio Dashboard
+  </h1>
+  
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Available Balances</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(portfolio.funds) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Total Investment</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(total_investment) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Portfolio Value</h3>
+      <p class="text-2xl font-bold">${{ "%.2f"|format(portfolio_value) }}</p>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h3 class="text-gray-500 text-sm">Total P/L</h3>
+      <p class="text-2xl font-bold {% if profit_loss >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+        {{ "+" if profit_loss >= 0 else "" }}{{ "%.2f"|format(profit_loss) }}%
+      </p>
+    </div>
+  </div>
+
+
+  
+  <!-- Charts and Holdings Section -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+    <div class="lg:col-span-3 flex flex-col lg:flex-row justify-center items-center gap-8">
+    
+      <!-- Portfolio Allocation Chart -->
+      <div class="bg-white p-4 rounded-lg shadow border border-gray-200 w-96">
+        <h2 class="text-lg font-semibold mb-4 text-center">Portfolio Allocation</h2>
+        <div class="h-64 flex justify-center items-center">
+          <canvas id="portfolioAllocationChart"></canvas>
+        </div>
+      </div>
+  
+      <!-- Unrealized P&L Chart -->
+      <div class="bg-white p-4 rounded-lg shadow border border-gray-200 w-96">
+        <h2 class="text-lg font-semibold mb-4 text-center">Unrealized P&L</h2>
+        <div class="h-64 flex justify-center items-center">
+          <canvas id="profitLossChart" width="400"></canvas>
+        </div>
+      </div>
+  
+    </div>
+
+    <!-- Portfolio Allocation Chart -->
+    <!-- <div class="lg:col-span-1 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Portfolio Allocation</h2>
+      <div class="h-64">
+        <canvas id="portfolioAllocationChart"></canvas>
+      </div>
+    </div>
+
+    <div class="lg:col-span-1 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Unrealized P&L</h2>
+      <div class="h-64">
+        <canvas id="profitLossChart"></canvas>
+      </div>
+    </div> -->
+    
+    <!-- Performance Chart -->
+    <!-- <div class="lg:col-span-2 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Portfolio Performance</h2>
+      <div class="h-64">
+        <canvas id="performanceChart"></canvas>
+      </div>
+    </div> -->
+    
+    <!-- Holdings Table -->
+    <div class="lg:col-span-3 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">My Holdings</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 border-b text-left">Stock</th>
+              <th class="py-3 px-4 border-b text-right">Quantity</th>
+              <th class="py-3 px-4 border-b text-right">Avg Price</th>
+              <th class="py-3 px-4 border-b text-right">Current Price</th>
+              <th class="py-3 px-4 border-b text-right">Market Value</th>
+              <th class="py-3 px-4 border-b text-right">P/L</th>
+              <th class="py-3 px-4 border-b text-right">P/L %</th>
+              <th class="py-3 px-4 border-b text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stock, details in portfolio.stocks.items() %}
+            <tr class="hover:bg-gray-50 border-b">
+              <td class="py-3 px-4">
+                <div class="font-medium">{{ stock }}</div>
+                <div class="text-sm text-gray-500">{{ stock_names.get(stock, "") }}</div>
+              </td>
+              <td class="py-3 px-4 text-right">{{ details.quantity }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(details.avg_price) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(current_prices.get(stock, 0)) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(details.quantity * current_prices.get(stock, 0)) }}</td>
+              {% set pl = (current_prices.get(stock, 0) - details.avg_price) * details.quantity %}
+              {% set pl_percent = ((current_prices.get(stock, 0) - details.avg_price) / details.avg_price * 100) if details.avg_price > 0 else 0 %}
+              <td class="py-3 px-4 text-right {% if pl >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                {{ "+" if pl >= 0 else "" }}{{ "%.2f"|format(pl) }}
+              </td>
+              <td class="py-3 px-4 text-right {% if pl_percent >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                {{ "+" if pl_percent >= 0 else "" }}{{ "%.2f"|format(pl_percent) }}%
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm" 
+                        onclick="window.location.href='/buy?symbol={{ stock }}'">
+                  Buy
+                </button>
+                <button class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm ml-1"
+                        onclick="window.location.href='/sell?symbol={{ stock }}'">
+                  Sell
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Recent Transactions -->
+    <div class="lg:col-span-3 bg-white p-4 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">Recent Transactions</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 border-b text-left">Date</th>
+              <th class="py-3 px-4 border-b text-left">Action</th>
+              <th class="py-3 px-4 border-b text-left">Symbol</th>
+              <th class="py-3 px-4 border-b text-right">Quantity</th>
+              <th class="py-3 px-4 border-b text-right">Price</th>
+              <th class="py-3 px-4 border-b text-right">Total</th>
+              <th class="py-3 px-4 border-b text-right">P/L</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for transaction in recent_transactions %}
+            <tr class="hover:bg-gray-50 border-b">
+              <td class="py-3 px-4">{{ transaction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-1 rounded-full text-xs font-medium 
+                  {% if transaction.action == 'BUY' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                  {{ transaction.action }}
+                </span>
+              </td>
+              <td class="py-3 px-4">{{ transaction.symbol }}</td>
+              <td class="py-3 px-4 text-right">{{ transaction.quantity }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(transaction.price) }}</td>
+              <td class="py-3 px-4 text-right">${{ "%.2f"|format(transaction.price * transaction.quantity) }}</td>
+              <td class="py-3 px-4 text-right">{{ transaction.profit_loss }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<canvas id="portfolioAllocationChart" width="400" height="400"></canvas>
+
+
+<script>
+  // Profitable vs Losing Holdings
+  const profitLossCtx = document.getElementById('profitLossChart').getContext('2d');
+  const profitLossChart = new Chart(profitLossCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Profitable Holdings', 'Losing Holdings'],
+      datasets: [{
+        data: {{data}},
+        backgroundColor: [
+          '#10B981', // Green for Profitable Holdings
+          '#EF4444'  // Red for Losing Holdings
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        
+      }
+    }
+  });
+
+  // Portfolio Allocation Chart
+  const allocationCtx = document.getElementById('portfolioAllocationChart').getContext('2d');
+  const allocationChart = new Chart(allocationCtx, {
+    type: 'doughnut',
+    data: {
+      labels: [{% for stock, details in portfolio.stocks.items() %}'{{ stock }}',{% endfor %}],
+      datasets: [{
+        data: [{% for stock, details in portfolio.stocks.items() %}{{ details.quantity * current_prices.get(stock, 0) }},{% endfor %}],
+        backgroundColor: [
+          '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
+          '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        }
+      }
+    }
+  });
+
+  const labels = [{% for stock, details in portfolio.stocks.items() %}'{{ stock }}'{% if not loop.last %},{% endif %}{% endfor %}];
+  const data = [{% for stock, details in portfolio.stocks.items() %}{{ details.quantity * current_prices.get(stock, 0) }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+  console.log('Labels:', labels);
+  console.log('Data:', data);
+
+  /*
+  // Performance Chart
+  const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+  const performanceChart = new Chart(performanceCtx, {
+    type: 'line',
+    data: {
+      labels: {{ performance_dates|safe }},
+      datasets: [{
+        label: 'Portfolio Value',
+        data: {{ performance_values|safe }},
+        borderColor: '#4F46E5',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return `$${context.raw.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          beginAtZero: false,
+          ticks: {
+            callback: function(value) {
+              return '$' + value;
+            }
+          }
+        }
+      }
+    }
+  });
+  */
+  
+
+</script>
+
+
+{% endblock %}
