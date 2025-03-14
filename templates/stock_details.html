@@ -90,9 +90,9 @@
             <input type="number" id="buyQuantity" min="1" class="ui input"
                 style="width: 50%; text-align: center; border: 1px solid black">
 
-            <!-- <label style="display: block; font-size: 1.2em; margin-bottom: 10px;">Enter Price:</label>
+            <label style="display: block; font-size: 1.2em; margin-bottom: 10px;">Enter Price:</label>
             <input type="number" id="buyPrice" min="0" step="0.01" class="ui input"
-                style="width: 50%; text-align: center; border: 1px solid black"> -->
+                style="width: 50%; text-align: center; border: 1px solid black" readonly>
         </div>
     </div>
     <div class="actions" style="text-align: center;">
@@ -115,9 +115,9 @@
             <input type="number" id="sellQuantity" min="1" class="ui input"
                 style="width: 50%; text-align: center; border: 1px solid black">
 
-            <!-- <label style="display: block; font-size: 1.2em; margin-bottom: 10px;">Enter Price:</label>
+            <label style="display: block; font-size: 1.2em; margin-bottom: 10px;">Enter Price:</label>
             <input type="number" id="sellPrice" min="0" step="0.01" class="ui input"
-                style="width: 50%; text-align: center; border: 1px solid black"> -->
+                style="width: 50%; text-align: center; border: 1px solid black" readonly>
         </div>
     </div>
     <div class="actions" style="text-align: center;">
@@ -157,6 +157,7 @@
         });
     });
 
+    /*
     function openBuyPopup() {
         console.log("Opening Buy Modal...");
         $('#buyPopup').modal('show');
@@ -166,6 +167,43 @@
         console.log("Opening Sell Modal...");
         $('#sellPopup').modal('show');
     }
+    */
+
+    function openBuyPopup() {
+        console.log("Opening Buy Modal...");
+        $('#buyPopup').modal('show');
+        let symbol = document.getElementById("buySymbol").value;  // Get stock symbol
+        fetchStockPrice(symbol, 'buy');
+    }
+    
+    function openSellPopup() {
+        console.log("Opening Sell Modal...");
+        $('#sellPopup').modal('show');
+        let symbol = document.getElementById("sellSymbol").value;  // Get stock symbol
+        fetchStockPrice(symbol, 'sell');
+    }
+    
+    function fetchStockPrice(symbol, type) {
+        $.ajax({
+            url: `/get-stock-price/${symbol}`,
+            type: "GET",
+            success: function(response) {
+                if (response.price) {
+                    if (type === 'buy') {
+                        $("#buyPrice").val(response.price);  // Set the price in the Buy popup
+                    } else if (type === 'sell') {
+                        $("#sellPrice").val(response.price);  // Set the price in the Sell popup
+                    }
+                } else {
+                    alert("Error fetching price: " + response.error);
+                }
+            },
+            error: function() {
+                alert("Error fetching stock price.");
+            }
+        });
+    }
+    
 
     function closePopup(popupId) {
         console.log("Closing modal: " + popupId);
@@ -175,13 +213,13 @@
 
     function confirmBuy() {
         let quantity = document.getElementById("buyQuantity").value;
-        // let price = document.getElementById("buyPrice").value; // Ensure you have an input field for price
+        let price = document.getElementById("buyPrice").value; // Ensure you have an input field for price
         let symbol = document.getElementById("buySymbol").value; // Jinja variable for stock symbol
 
-        // if (quantity < 1 || price <= 0) {
-        //     alert("Please enter a valid quantity and price.");
-        //     return;
-        // }
+        if (quantity < 1 || price <= 0) {
+            alert("Please enter a valid quantity and price.");
+            return;
+        }
         if (quantity < 1) {
             alert("Please enter a valid quantity.");
             return;
@@ -191,7 +229,7 @@
         let formData = new FormData();
         formData.append("symbol", symbol);
         formData.append("quantity", quantity);
-        // formData.append("price", price);
+        formData.append("price", price);
 
         // Send form data using POST request
         fetch("/buy", {
@@ -216,12 +254,12 @@
     function confirmSell() {
         let symbol = document.getElementById("sellSymbol").value;
         let quantity = parseInt(document.getElementById("sellQuantity").value);
-        // let price = parseFloat(document.getElementById("sellPrice").value);
+        let price = parseFloat(document.getElementById("sellPrice").value);
 
-        // if (!symbol || quantity < 1 || price <= 0) {
-        //     alert("Please enter a valid stock symbol, quantity, and price.");
-        //     return;
-        // }
+        if (!symbol || quantity < 1 || price <= 0) {
+            alert("Please enter a valid stock symbol, quantity, and price.");
+            return;
+        }
 
         if (!symbol || quantity < 1) {
             alert("Please enter a valid stock symbol and quantity.");
@@ -231,6 +269,7 @@
         let formData = new FormData();
         formData.append("symbol", symbol);
         formData.append("quantity", quantity);
+        formData.append("price", price);
 
         fetch("/sell", {
             method: "POST",
@@ -250,6 +289,7 @@
                 alert("Failed to process the sell request.");
             });
     }
+
 </script>
 
 {% endblock %}

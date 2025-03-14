@@ -68,8 +68,9 @@
                     url: `/get-stock-price/${symbol}`,
                     type: "GET",
                     success: function (response) {
+                        console.log(response)
                         if (response.price) {
-                            $("#price").val(response.price.toFixed(2));
+                            $("#price").val(response.price);
                         } else {
                             $("#price").val("Invalid Symbol");
                         }
