@@ -16,12 +16,12 @@
     </thead>
     <tbody>
         <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
+            <td>{{data.Date}}</td>
+            <td>{{data.Open}}</td>
+            <td>{{data.High}}</td>
+            <td>{{data.Low}}</td>
+            <td>{{data.Close}}</td>
+            <td>{{data.Volume}}</td>
         </tr>
     </tbody>
 </table>
@@ -87,7 +87,7 @@
 
 <script>
     window.onload = async function () {
-        let stockData = JSON.parse(localStorage.getItem("latestStockData"));
+        /*let stockData = JSON.parse(localStorage.getItem("latestStockData"));
         document.getElementById("stock-name").innerText = stockData.stock_id + " Last day details"
         if (stockData) {
             document.querySelector("td:nth-child(1)").innerText = stockData.date || "-";
@@ -98,8 +98,9 @@
             document.querySelector("td:nth-child(6)").innerText = stockData.volume || "-";
         } else {
             console.log("No stock data found in localStorage.");
-        }
+        }*/
 
+        stockData = '{{data}}'
         console.log(stockData)
         stockData = {
             Close: stockData.close,

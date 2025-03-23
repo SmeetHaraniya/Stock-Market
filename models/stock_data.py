@@ -1,3 +1,4 @@
+# use for binding model with 
 from pydantic import BaseModel
 
 class StockData(BaseModel):

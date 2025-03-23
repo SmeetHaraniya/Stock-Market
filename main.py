@@ -55,45 +55,23 @@ templates = Jinja2Templates(directory="templates")
 def root():
     return RedirectResponse(url="/login")
 
+def get_real_time_data(symbols):
+    print('get_real_time_data')
+    try:
+        tickers = yf.download(symbols, period="3d", interval="1m")['Close'].iloc[-1]
+        return {symbol: round(tickers[symbol], 6) for symbol in symbols}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/index")
 def index(request: Request):
     print('Index:', request.session.get('user_id'))
-    stock_filter = request.query_params.get('filter', False)
 
     rows = stock_collection.find({}, {"symbol": 1, "name": 1})
     print(rows)
 
     symbols = ["AAPL", "AMZN", "TSLA", "MSFT", "META"]
     print(get_real_time_data(symbols))
-
-    # # ✅ Fetch latest closing prices for each stock
-    # latest_prices = stock_price_collection.aggregate([
-    #     {"$sort": {"date": -1}},
-    #     {"$group": {
-    #         "_id": "$stock_id",
-    #         "close": {"$first": "$close"}
-    #     }}
-    # ])
-
-    # # ✅ Map closing prices to stock symbols
-    # closing_values = {}
-    # for price in latest_prices:
-    #     stock = stock_collection.find_one({"symbol": price["_id"]})
-    #     # print(stock)
-    #     if stock:
-    #         closing_values[stock['symbol']] = price['close']
-
-    # print("closing values: ", closing_values)
-
-    # # Apply filter logic for sorting based on closing price
-    # if stock_filter == 'new_closing_highs':
-    #     # Sort by highest closing price (descending)
-    #     closing_values = sorted(closing_values, key=lambda x: x['close'], reverse=True)
-
-    # elif stock_filter == 'new_closing_lows':
-    #     # Sort by lowest closing price (ascending)
-    #     closing_values = sorted(closing_values, key=lambda x: x['close'])
-
 
     # ✅ Return the template response
     return templates.TemplateResponse("index.html", {
@@ -103,6 +81,7 @@ def index(request: Request):
         "closing_values": get_real_time_data(symbols)
     })
 
+# useless.........
 @app.get("/search_stocks")
 def search_stocks(query: str = Query("")):
     # Use MongoDB regex to match stocks starting with 'query'
@@ -116,6 +95,7 @@ def search_stocks(query: str = Query("")):
     
     return JSONResponse(result)
 
+# use for widget
 @app.get("/stock/{symbol}")
 def stock_details(request: Request, symbol: str):
     # Fetch stock details using the symbol
@@ -138,33 +118,15 @@ def stock_details(request: Request, symbol: str):
         "bars": prices,
     })
 
-
+# use for redirect page...
 @app.get("/trade_stocks")
 def trade_stocks(request:Request):
     return templates.TemplateResponse("trade_stocks.html",{"request":request})
-    
+
+# use for fetching real time data for buying and selling...   
 @app.get("/get-stock-price/{symbol}")
 def get_stock_price(request: Request, symbol:str):
     print("get_stock_price", symbol)
-    # # Find the stock ID based on the symbol
-    # stock = stock_collection.find_one({"symbol": symbol.upper()})
-    # print(stock)
-    # if not stock:
-    #     raise HTTPException(status_code=404, detail="Stock symbol not found")
-    
-    # # Get the latest stock price based on the stock ID
-    # stock_price = stock_price_collection.find(
-    #     {"stock_id": stock["symbol"]}, 
-    #     sort=[("date", -1)]  # Sort by date DESCENDING to get the latest price
-    # )
-
-    # latest_price = next(stock_price, None)
-    # print(latest_price)
-    # if not stock_price:
-    #     raise HTTPException(status_code=404, detail="Stock price not available")
-
-    # # Return the latest stock price
-    # return {"price": round(latest_price['close'], 2) }
 
     try:
         data = yf.download(symbol, period="1d", interval="1m")  # Fetch stock data
@@ -425,19 +387,19 @@ def get_portfolio(request: Request):
     })
 
 
-# ✅ Function to fetch current prices from MongoDB or an API
-def get_current_prices(symbols: list):
-    price_dict = {}
-    for symbol in symbols:
-        # Fetch the latest document sorted by timestamp in descending order
-        price = db.stock_price.find_one(
-            {"stock_id": symbol}, 
-            sort=[("date", -1)]  # Sort by timestamp descending
-        )
-        print("price:", price)
-        if price:
-            price_dict[symbol] = price['close']
-    return price_dict
+# # ✅ Function to fetch current prices from MongoDB or an API
+# def get_current_prices(symbols: list):
+#     price_dict = {}
+#     for symbol in symbols:
+#         # Fetch the latest document sorted by timestamp in descending order
+#         price = db.stock_price.find_one(
+#             {"stock_id": symbol}, 
+#             sort=[("date", -1)]  # Sort by timestamp descending
+#         )
+#         print("price:", price)
+#         if price:
+#             price_dict[symbol] = price['close']
+#     return price_dict
 
 
 # ✅ Function to fetch stock names from MongoDB
@@ -445,7 +407,6 @@ def get_stock_names(symbols: list):
     stock_names = db.stocks.find({})
     name_dict = {stock['symbol']: stock['name'] for stock in stock_names}
     return name_dict
-
 
 # ✅ Function to generate performance data
 def generate_performance_data():
@@ -520,10 +481,3 @@ def analyze_sentiment(data: NewsInput):
     return {"sentiment_score": avg_sentiment}
 
 ####################################################################################
-
-def get_real_time_data(symbols):
-    try:
-        tickers = yf.download(symbols, period="1d", interval="1m")['Close'].iloc[-1]
-        return {symbol: round(tickers[symbol], 6) for symbol in symbols}
-    except Exception as e:
-        return {"error": str(e)}

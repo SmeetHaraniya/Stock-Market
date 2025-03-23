@@ -142,8 +142,8 @@
 <script>
 
     function saveDataAndRedirect() {
-        let latestBar = JSON.parse('{{ bars[0] | tojson | safe }}');
-        localStorage.setItem("latestStockData", JSON.stringify(latestBar));
+        // let latestBar = JSON.parse('{{ bars[0] | tojson | safe }}');
+        // localStorage.setItem("latestStockData", JSON.stringify(latestBar));
         window.location.href = "/predict";
     }
 
