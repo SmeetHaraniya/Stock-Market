@@ -29,15 +29,16 @@ def get_stocks():
         del stock["_id"]
     return stocks
 
-@stock_router.get("/predict")
-def predict(request: Request):
-    data = get_last_date_data("AAPL")  # Get formatted last day data
+@stock_router.get("/predict/{symbol}")
+def predict(request: Request, symbol: str):
+    data = get_last_date_data(symbol)  # Get formatted last day data
 
     print("last-date-data", data)  # Debugging output
     
     return templates.TemplateResponse("predict.html", {
         "request": request,
-        "data": data  # Ensure the variable name matches the template
+        "data": data,
+        "symbol": symbol  # Ensure the variable name matches the template
     })
 
 def get_last_date_data(symbol):
