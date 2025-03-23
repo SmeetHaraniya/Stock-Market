@@ -44,5 +44,5 @@ def predict(data: StockData):
     # Make prediction
     prediction = model.predict(df)[0]
 
-    return {"prediction": "Up" if prediction == 1 else "Down"}
+    return {"prediction": "Up" if prediction == 0 else "Down"}
 
