@@ -12,9 +12,11 @@ db = client["stock_market"]
 
 users_collection = db["user"] 
 
+
 @login_router.get("/login")
 def login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
 
 @login_router.post("/login")
 def login(request: Request, email: str = Form(...), password: str = Form(...)):

@@ -36,32 +36,6 @@
     </div>
     <!-- TradingView Widget END -->
 
-    <br><br>
-    <!-- <h2>Prices</h2>
-    <table class="ui celled striped table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Open</th>
-                <th>High</th>
-                <th>Low</th>
-                <th>Close</th>
-                <th>Volume</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for bar in bars %}
-            <tr>
-                <td>{{ bar.date }}</td>
-                <td>{{ bar.open }}</td>
-                <td>{{ bar.high }}</td>
-                <td>{{ bar.low }}</td>
-                <td>{{ bar.close }}</td>
-                <td>{{ bar.volume }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table> -->
 </table>
 
 <!-- Buy & Sell Buttons -->
@@ -70,8 +44,10 @@
         onclick="openBuyPopup()">Buy</button>
     <button class="ui red button" style="width: 150px; font-size: 1.2em;" onclick="openSellPopup()">Sell</button>
 </div>
+
+<!-- News Impacts -->
 <div style="display: flex; justify-content: center; margin-top: 10px;">
-    <button class="ui blue button" style="width: 250px; font-size: 1.2em;" onclick="saveDataAndRedirect()">
+    <button class="ui blue button" style="width: 250px; font-size: 1.2em;" onclick="redirect()">
         News Impacts
     </button>
 </div>
@@ -141,10 +117,9 @@
 
 <script>
 
-    function saveDataAndRedirect() {
-        // let latestBar = JSON.parse('{{ bars[0] | tojson | safe }}');
-        // localStorage.setItem("latestStockData", JSON.stringify(latestBar));
-        window.location.href = "/predict";
+    function redirect() {
+        let symbol = "{{stock.symbol}}"
+        window.location.href = `/predict/${symbol}`
     }
 
     $(document).ready(function () {
@@ -157,37 +132,25 @@
         });
     });
 
-    /*
-    function openBuyPopup() {
-        console.log("Opening Buy Modal...");
-        $('#buyPopup').modal('show');
-    }
-
-    function openSellPopup() {
-        console.log("Opening Sell Modal...");
-        $('#sellPopup').modal('show');
-    }
-    */
-
     function openBuyPopup() {
         console.log("Opening Buy Modal...");
         $('#buyPopup').modal('show');
         let symbol = document.getElementById("buySymbol").value;  // Get stock symbol
         fetchStockPrice(symbol, 'buy');
     }
-    
+
     function openSellPopup() {
         console.log("Opening Sell Modal...");
         $('#sellPopup').modal('show');
         let symbol = document.getElementById("sellSymbol").value;  // Get stock symbol
         fetchStockPrice(symbol, 'sell');
     }
-    
+
     function fetchStockPrice(symbol, type) {
         $.ajax({
             url: `/get-stock-price/${symbol}`,
             type: "GET",
-            success: function(response) {
+            success: function (response) {
                 if (response.price) {
                     if (type === 'buy') {
                         $("#buyPrice").val(response.price);  // Set the price in the Buy popup
@@ -198,18 +161,16 @@
                     alert("Error fetching price: " + response.error);
                 }
             },
-            error: function() {
+            error: function () {
                 alert("Error fetching stock price.");
             }
         });
     }
-    
 
     function closePopup(popupId) {
         console.log("Closing modal: " + popupId);
         $('#' + popupId).modal('hide').removeClass("visible active"); // Ensures it hides properly
     }
-
 
     function confirmBuy() {
         let quantity = document.getElementById("buyQuantity").value;

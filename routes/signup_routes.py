@@ -12,9 +12,11 @@ db = client["stock_market"]
 
 users_collection = db["user"]  
 
+
 @signup_router.get("/signup")
 def signup(request: Request):
     return templates.TemplateResponse("signup.html", {"request": request})
+
 
 @signup_router.post("/signup")
 def signup(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...)):

@@ -9,12 +9,14 @@ db = client["stock_market"]
 
 user_collection = db['user']
 
+
 @user_router.post("/users/", response_model=User)
 def create_user(user: User):
     if db.user.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
     result = db.user.insert_one(user.dict())
     return {"id": str(result.inserted_id), **user.dict()}
+
 
 @user_router.get("/users/")
 def get_users():
@@ -23,6 +25,7 @@ def get_users():
         user["id"] = str(user["_id"])
         del user["_id"]
     return {"message": "users fetched successfully"}
+
 
 @user_router.get("/get_current_user")
 def get_current_user(request: Request):

@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto p-4">
+    <h1 class="ui header">📜Prediction History</h1>
+    <div id="transactions" role="tabpanel" aria-labelledby="transaction-tab" class="p-4 border rounded-lg bg-white">
+        <h4 class="text-center">
+            <b style="font-size: medium">Predicted Histories</b>
+        </h4>
+        <br />
+        <div class="overflow-auto h-100">
+            <table class="min-w-full bg-white">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="py-3 px-4 border-b text-center">Date</th>
+                        <th class="py-3 px-4 border-b text-center">Stock Action</th>
+                        <th class="py-3 px-4 border-b text-cemter">Open Price</th>
+                        <th class="py-3 px-4 border-b text-center">Close Price</th>
+                        <th class="py-3 px-4 border-b text-center">Actual Movement</th>
+                        <th class="py-3 px-4 border-b text-center">Predicted Movement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in histories %}
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="py-3 px-4 border-b text-center">{{ h.Date }}</td>
+                        <td class="py-3 px-4 border-b text-center">{{ h["Stock Name"] }}</td>
+                        <td class="py-3 px-4 border-b text-center">{{ h["Open Price"] }}</td>
+                        <td class="py-3 px-4 border-b text-center">{{ h["Close Price"] }}</td>
+                        <td class="py-3 px-4 border-b text-center">{{ h["Actual Movement"] }}</td>
+                        <td class="py-3 px-4 border-b text-center">{{ h["Predicted Movement"] }}</td>
+                       
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <form action="{{ url_for('index') }}" method="get">
+        <button class="ui blue button" style="width: 200px; font-size: 1.2em; margin-top: 1.2rem" type="submit">
+            Back to Home
+        </button>
+    </form>
+</div>
+{% endblock %}

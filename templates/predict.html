@@ -2,7 +2,8 @@
 
 {% block content %}
 
-<h1 id="stock-name" class="ui header"></h1>
+<h1 id="stock-name" hidden="true">{{data.symbol}}</h1>
+<h1 class="ui header">{{ data["Stock Name"] }} last day details</h1>
 <table class="ui celled striped table">
     <thead>
         <tr>
@@ -16,12 +17,12 @@
     </thead>
     <tbody>
         <tr>
-            <td>{{data.Date}}</td>
-            <td>{{data.Open}}</td>
-            <td>{{data.High}}</td>
-            <td>{{data.Low}}</td>
-            <td>{{data.Close}}</td>
-            <td>{{data.Volume}}</td>
+            <td id="stock_date">{{data.Date}}</td>
+            <td id="stock_open">{{data.Open}}</td>
+            <td id="stock_high">{{data.High}}</td>
+            <td id="stock_low">{{data.Low}}</td>
+            <td id="stock_close">{{data.Close}}</td>
+            <td id="stock_volume">{{data.Volume}}</td>
         </tr>
     </tbody>
 </table>
@@ -36,14 +37,67 @@
         box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
     ">
     <p style="font-size: 16px; font-weight: bold; color: #333;">Predicted Trend:</p>
-    <p id="prediction-result" style="font-size: 20px; color: #28a745; font-weight: bold;">-</p>
+    <p id="prediction-result" style="font-size: 20px; color: #28a745; font-weight: bold;">{{data["prediction"]}}</p>
     <p style="color: #666; font-size: 14px;">This predicted trend is based on the latest market trends,
         sentiment analysis, and technical indicators.</p>
 </div>
 
 
+
+
+<h1 class="ui header">Feature Details</h1>
+<table class="ui celled table striped compact">
+    <thead>
+        <tr style="background: #f4f4f4;">
+            <th style="text-align: left; font-size: 16px;">Feature</th>
+            <th style="text-align: center; font-size: 16px;">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Tweet Count</strong></td>
+            <td class="center aligned">{{ data["Tweet_Count"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Sentiment Score</strong></td>
+            <td class="center aligned">{{ data["Sentiment_Score"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Weighted Sentiment</strong></td>
+            <td class="center aligned">{{ data["Weighted_Sentiment"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Moving Average (5 days)</strong></td>
+            <td class="center aligned">{{ data["MA5"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Moving Average (20 days)</strong></td>
+            <td class="center aligned">{{ data["MA20"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Sentiment Score (Last 1 Day)</strong></td>
+            <td class="center aligned">{{ data["Sentiment_Lag_1"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Sentiment Score (Last 2 Days)</strong></td>
+            <td class="center aligned">{{ data["Sentiment_Lag_2"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Closing Price (Last Day)</strong></td>
+            <td class="center aligned">{{ data["Price_Lag_1"] }}</td>
+        </tr>
+        <tr>
+            <td><strong>Closing Price (Last 2 Days)</strong></td>
+            <td class="center aligned">{{ data["Price_Lag_2"] }}</td>
+        </tr>
+    </tbody>
+</table>
+
+
+
+
 <!-- News Input Section -->
-<h2 class="ui header" style="margin-top: 30px;">Enter Latest News</h2>
+<!-- <h2 class="ui header" style="margin-top: 30px;">Enter Latest News</h2>
 <form id="news-form" class="ui form" style="margin-bottom: 20px;">
     <div id="news-container">
         <div class="field">
@@ -52,10 +106,10 @@
     </div>
     <button type="button" id="add-news" class="ui button">➕ Add Another News</button>
     <button type="submit" class="ui primary button">Submit</button>
-</form>
+</form> -->
 
 
-<h1 class="ui header">News Prediction Results</h1>
+<!-- <h1 class="ui header">News Prediction Results</h1>
 <div id="prediction-container" style="
         background: #fff;
         padding: 15px;
@@ -68,7 +122,7 @@
     <p style="color: #666; font-size: 14px;">
         This predicted trend is based on the latest market trends, sentiment analysis, and technical indicators.
     </p>
-</div>
+</div> -->
 
 
 <!-- <h2>Stock Prediction</h2>
@@ -86,46 +140,6 @@
 
 
 <script>
-    window.onload = async function () {
-        /*let stockData = JSON.parse(localStorage.getItem("latestStockData"));
-        document.getElementById("stock-name").innerText = stockData.stock_id + " Last day details"
-        if (stockData) {
-            document.querySelector("td:nth-child(1)").innerText = stockData.date || "-";
-            document.querySelector("td:nth-child(2)").innerText = stockData.open || "-";
-            document.querySelector("td:nth-child(3)").innerText = stockData.high || "-";
-            document.querySelector("td:nth-child(4)").innerText = stockData.low || "-";
-            document.querySelector("td:nth-child(5)").innerText = stockData.close || "-";
-            document.querySelector("td:nth-child(6)").innerText = stockData.volume || "-";
-        } else {
-            console.log("No stock data found in localStorage.");
-        }*/
-
-        stockData = '{{data}}'
-        console.log(stockData)
-        stockData = {
-            Close: stockData.close,
-            High: stockData.high,
-            Low: stockData.low,
-            Open: stockData.open,
-            Volume: stockData.volume,
-            Tweet_Count: 15000,
-            Sentiment_Score: 0.9
-        }
-
-        const response = await fetch("http://127.0.0.1:8000/predict", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(stockData)
-        });
-
-        const result = await response.json();
-        console.log(result, -1)
-        document.getElementById("prediction-result").innerText = result.prediction;
-    };
-
-
 
     document.getElementById("add-news").addEventListener("click", function () {
         let newsContainer = document.getElementById("news-container");
@@ -134,7 +148,7 @@
         newField.innerHTML = '<input type="text" name="news" placeholder="Enter another news headline...">';
         newsContainer.appendChild(newField);
     });
-    
+
     document.getElementById("news-form").addEventListener("submit", async function (event) {
         event.preventDefault();
 

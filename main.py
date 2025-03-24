@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 
 from bson import ObjectId
 from pydantic import BaseModel
@@ -26,11 +25,9 @@ from routes.login_routes import login_router
 from routes.signup_routes import signup_router
 
 from fastapi.templating import Jinja2Templates
-import requests
 
 app = FastAPI()
 
-# Connect to MongoDB
 client = MongoClient("mongodb+srv://dharmikparmarpd:dhp12345@cluster0.v5pxg.mongodb.net/stock_market?retryWrites=true&w=majority&appName=Cluster0")
 db = client['stock_market'] 
 
@@ -39,6 +36,7 @@ stock_collection = db['stock']
 stock_price_collection = db['stock_price']
 stock_holding_collection = db['stock_holding']
 transaction_collection = db['transaction']
+history_collection = db['history_collection']
 
 app.add_middleware(SessionMiddleware, secret_key=config.SPECIAL_KEY)
 
@@ -73,27 +71,13 @@ def index(request: Request):
     symbols = ["AAPL", "AMZN", "TSLA", "MSFT", "META"]
     print(get_real_time_data(symbols))
 
-    # ✅ Return the template response
+    # Return the template response
     return templates.TemplateResponse("index.html", {
         "request": request,
         "stocks": rows,
-        # "closing_values": closing_values
         "closing_values": get_real_time_data(symbols)
     })
 
-# useless.........
-@app.get("/search_stocks")
-def search_stocks(query: str = Query("")):
-    # Use MongoDB regex to match stocks starting with 'query'
-    stocks = stock_collection.find(
-        {"symbol": {"$regex": f"^{query}", "$options": "i"}},  # Case-insensitive search
-        {"_id": 0, "symbol": 1, "name": 1}  # Return only symbol and name
-    ).sort("symbol", 1)
-
-    # Convert MongoDB cursor to a list of dictionaries
-    result = list(stocks)
-    
-    return JSONResponse(result)
 
 # use for widget
 @app.get("/stock/{symbol}")
@@ -367,7 +351,7 @@ def get_portfolio(request: Request):
     labels = ['Profitable Holdings', 'Losing Holdings']
     data = [profitable_stocks, losing_stocks]
 
-    print(data);
+    print(data)
     print("total_profit_loss;", total_profit_loss)
     
     # Render the portfolio template
@@ -387,28 +371,28 @@ def get_portfolio(request: Request):
     })
 
 
-# # ✅ Function to fetch current prices from MongoDB or an API
-# def get_current_prices(symbols: list):
-#     price_dict = {}
-#     for symbol in symbols:
-#         # Fetch the latest document sorted by timestamp in descending order
-#         price = db.stock_price.find_one(
-#             {"stock_id": symbol}, 
-#             sort=[("date", -1)]  # Sort by timestamp descending
-#         )
-#         print("price:", price)
-#         if price:
-#             price_dict[symbol] = price['close']
-#     return price_dict
+@app.route("/prediction-history", methods=["GET"])
+def model_prediction_history(request: Request):
+    print(-1)
+    histories = list(history_collection.find().sort("Date", -1))
+    
+    for history in histories:
+        if "_id" in history:
+            history["_id"] = str(history["_id"])
+            
+    return templates.TemplateResponse("prediction_history.html", {
+        "request": request,
+        "histories": histories
+    })
+    
 
-
-# ✅ Function to fetch stock names from MongoDB
+# Function to fetch stock names from MongoDB
 def get_stock_names(symbols: list):
     stock_names = db.stocks.find({})
     name_dict = {stock['symbol']: stock['name'] for stock in stock_names}
     return name_dict
 
-# ✅ Function to generate performance data
+# Function to generate performance data
 def generate_performance_data():
     dates = []
     values = []
@@ -448,36 +432,3 @@ def get_current_user(request: Request):
         "cash": user["cash"]
     }
 
-
-################################################ Dharmik ################################################
-class NewsInput(BaseModel):
-    news: list[str]
-    
-import re
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-# Initialize the VADER sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
-
-# Function to get the sentiment label based on compound score
-def get_sentiment_score(tweet):
-    compound_score = analyzer.polarity_scores(tweet)['compound']
-    return compound_score
-
-    
-def clean_text(text):
-    text = re.sub(r'[^a-zA-Z\s]', '', text).lower()
-    return text
-
-@app.post("/analyze_sentiment")
-def analyze_sentiment(data: NewsInput):
-    cleaned_texts = [clean_text(news) for news in data.news]
-    sentiment_scores = [get_sentiment_score(text) for text in cleaned_texts]
-
-    if len(sentiment_scores) == 0:
-        return {"sentiment_score": 0}  # Default to neutral if no input
-
-    avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-    return {"sentiment_score": avg_sentiment}
-
-####################################################################################
