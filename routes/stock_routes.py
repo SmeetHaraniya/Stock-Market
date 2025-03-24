@@ -162,12 +162,13 @@ def fetch_last_test_data():
     return df
 
 
-# def testing_prediction(symbol,date, features):
+def testing_prediction(symbol,date, features):
+    model_path = os.path.join(os.path.dirname(__file__), "..", "ml_model", "stock_prediction_model.pkl")
+    model = joblib.load(model_path)
+    df = pd.DataFrame([features])
 
-#     df = pd.DataFrame([features])
-
-#     prediction = rfc_model.predict(df)[0]
-#     return "Up" if prediction == 0 else "Down"
+    prediction = model.predict(df)[0]
+    return "Up" if prediction == 0 else "Down"
 
 
 
