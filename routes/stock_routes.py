@@ -9,8 +9,10 @@ import os
 import joblib
 import yfinance as yf
 import requests
+from pydantic import BaseModel
+import re
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
-from models.stock_data import StockData
 
 stock_router = APIRouter()
 client = MongoClient("mongodb+srv://dharmikparmarpd:dhp12345@cluster0.v5pxg.mongodb.net/stock_market?retryWrites=true&w=majority&appName=Cluster0")
@@ -22,10 +24,12 @@ cnbc_news_collection = db["cnbc_news"]  # Collection for CNBC data
 
 templates = Jinja2Templates(directory="templates")
 
+
 @stock_router.post("/stocks/", response_model=Stock)
 def create_stock(stock: Stock):
     result = db.stock.insert_one(stock.dict())
     return {"id": str(result.inserted_id), **stock.dict()}
+
 
 @stock_router.get("/stocks/")
 def get_stocks():
@@ -35,22 +39,21 @@ def get_stocks():
         del stock["_id"]
     return stocks
 
+
 @stock_router.get("/predict/{symbol}")
 def predict(request: Request, symbol: str):
     data = fetch_last_test_data()  # Get formatted last day data
-
-    # print("last-date-data", data)  # Debugging output
 
     if isinstance(data, pd.DataFrame):
         filtered_data = data[data["Stock Name"] == symbol].to_dict(orient="records")
     else:
         filtered_data = []
-    print(-1)
-    print(filtered_data)
+    
     return templates.TemplateResponse("predict.html", {
         "request": request,
         "data": filtered_data[0]  # Ensure the variable name matches the template
     })
+
 
 def get_last_date_data(symbol):
     try:
@@ -76,26 +79,15 @@ def get_last_date_data(symbol):
         print(f"Error fetching data: {e}")
         return {"error": str(e)}
 
-from pydantic import BaseModel
 
-class ModelData(BaseModel):
-    Close: float
-    High: float
-    Low: float
-    Open: float
-    Volume: int
-   
 def store_test_data():
     symbols = ['TSLA','MSFT','META','AMZN',"AAPL"]
 
     for symbol in symbols:
         stock_data = get_last_date_data(symbol)
 
-        print(-1, stock_data["Date"])
         news = fetch_cnbc_news(stock_data["Date"],symbol)
-        print(-2)
         avg_sen_score = process_dataframe(news)
-        print(-3)
         [ma5, ma20, pl1, pl2] = get_moving_avg(symbol)
 
         feature_names = [
@@ -110,9 +102,6 @@ def store_test_data():
             ma5, ma20, 0.955, 0.955, pl1, pl2
         ]], columns=feature_names)
 
-        print("DataFrame Shape:", df.shape)
-        print("DataFrame Columns:", df.columns)
-        print(df)
         features = {
             "Open": stock_data["Open"],
             "High": stock_data["High"],
@@ -171,34 +160,26 @@ def testing_prediction(symbol,date, features):
     return "Up" if prediction == 0 else "Down"
 
 
+# @stock_router.post("/user_predict/{symbol}/{date}")
+# def user_predict(request: Request, symbol: str, date: str):
 
+#     record = testing_data_collection.find_one({"symbol": symbol, "date": date})
 
-@stock_router.post("/user_predict/{symbol}/{date}")
-def user_predict(request: Request, symbol: str, date: str):
-    # model_path = os.path.join(os.path.dirname(__file__), "..", "ml_model", "stock_prediction_model.pkl")
-    # model = joblib.load(model_path)
-    record = testing_data_collection.find_one({"symbol": symbol, "date": date})
-    print(record)
-    # features = record["features"]
-    # df = pd.DataFrame([features]) 
+#     required_keys = {
+#         "Tweet_Count": "Number of Tweets",
+#         "Sentiment_Score": "Sentiment Score",
+#         "Weighted_Sentiment": "Weighted Sentiment",
+#         "MA5": "5-Day Moving Avg",
+#         "MA20": "20-Day Moving Avg",
+#         "Sentiment_Lag_1": "Previous Day Sentiment",
+#         "Sentiment_Lag_2": "Two Days Ago Sentiment",
+#         "Price_Lag_1": "Previous Day Price",
+#         "Price_Lag_2": "Two Days Ago Price"
+#     }
+#     filtered_features = {new_key: record["features"][old_key] for old_key, new_key in required_keys.items() if old_key in record["features"]}
+
+#     return {"prediction": record["prediction"], "parameters": filtered_features}
     
-    # prediction = model.predict(df)[0]
-    required_keys = {
-        "Tweet_Count": "Number of Tweets",
-        "Sentiment_Score": "Sentiment Score",
-        "Weighted_Sentiment": "Weighted Sentiment",
-        "MA5": "5-Day Moving Avg",
-        "MA20": "20-Day Moving Avg",
-        "Sentiment_Lag_1": "Previous Day Sentiment",
-        "Sentiment_Lag_2": "Two Days Ago Sentiment",
-        "Price_Lag_1": "Previous Day Price",
-        "Price_Lag_2": "Two Days Ago Price"
-    }
-    filtered_features = {new_key: record["features"][old_key] for old_key, new_key in required_keys.items() if old_key in record["features"]}
-
-    return {"prediction": record["prediction"], "parameters": filtered_features}
-    
-
 
 def fetch_cnbc_news(target_date, symbol):
     # API URL
@@ -235,9 +216,6 @@ def fetch_cnbc_news(target_date, symbol):
 
         # Add results to list
         all_results.extend(results)
-
-        # Print progress
-        print(f"Fetched {len(results)} articles from page {page}")
 
         # Move to the next page
         page += 1
@@ -283,8 +261,6 @@ def fetch_cnbc_news(target_date, symbol):
 
     return sentiment_data  # Return the DataFrame
 
-import re
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 def process_dataframe(df):
     text_column="description"
@@ -321,6 +297,7 @@ def process_dataframe(df):
 
     return tweets_agg['Avg_Tweet_Sentiment']
 
+
 def get_moving_avg(symbol):
 
     # ✅ Fetch Stock Data for the last 21 days (to calculate MA5 & MA20)
@@ -336,7 +313,13 @@ def get_moving_avg(symbol):
     # ✅ Get Only the Latest MA5 & MA20
     latest_ma5, latest_ma20, pl1, pl2 = data["MA5"].iloc[-1], data["MA20"].iloc[-1], data["pl1"].iloc[-1], data["pl2"].iloc[-1]
 
-    # ✅ Print Results
-    print("MA5:", latest_ma5)
-    print("MA20:", latest_ma20)
     return [latest_ma5, latest_ma20, pl1, pl2]
+
+
+# class ModelData(BaseModel):
+#     Close: float
+#     High: float
+#     Low: float
+#     Open: float
+#     Volume: int
+   

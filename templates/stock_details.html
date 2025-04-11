@@ -37,6 +37,8 @@
     <!-- TradingView Widget END -->
 
 </table>
+<br><br>
+
 
 <!-- Buy & Sell Buttons -->
 <div style="display: flex; justify-content: center; margin-top: 20px;">
@@ -50,6 +52,48 @@
     <button class="ui blue button" style="width: 250px; font-size: 1.2em;" onclick="redirect()">
         News Impacts
     </button>
+</div>
+<br><br>
+
+
+{% if histories %}
+<h1 class="ui header">📜Prediction History for {{ histories[0]["Stock Name"] }}</h1>
+{% else %}
+<h1 class="ui header">No prediction history available.</h1>
+{% endif %}
+
+<div id="transactions" role="tabpanel" aria-labelledby="transaction-tab"
+    class="p-4 border rounded-lg bg-white">
+    <h4 class="text-center">
+        <b style="font-size: medium">Predicted Histories</b>
+    </h4>
+    <br />
+
+    <div class="overflow-auto h-100">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="py-3 px-4 border-b text-center">Date</th>
+                    <th class="py-3 px-4 border-b text-cemter">Open Price</th>
+                    <th class="py-3 px-4 border-b text-center">Close Price</th>
+                    <th class="py-3 px-4 border-b text-center">Actual Movement</th>
+                    <th class="py-3 px-4 border-b text-center">Predicted Movement</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in histories %}
+                <tr class="hover:bg-gray-50 border-b">
+                    <td class="py-3 px-4 border-b text-center">{{ h.Date }}</td>
+                    <td class="py-3 px-4 border-b text-center">{{ h["Open Price"] }}</td>
+                    <td class="py-3 px-4 border-b text-center">{{ h["Close Price"] }}</td>
+                    <td class="py-3 px-4 border-b text-center">{{ h["Actual Movement"] }}</td>
+                    <td class="py-3 px-4 border-b text-center">{{ h["Predicted Movement"] }}</td>
+
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 

@@ -1,23 +1,14 @@
 from datetime import datetime
 
 from bson import ObjectId
-from pydantic import BaseModel
 import config
 from fastapi import FastAPI, Form, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import  RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pymongo import MongoClient
-from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from datetime import datetime, timedelta
-import random
+from datetime import datetime
 import yfinance as yf
-
-from models.stock import Stock
-from models.user import User
-from models.stock_price import StockPrice
-from models.stock_holding import StockHolding
-from models.transaction import Transaction
 
 from routes.stock_routes import stock_router
 from routes.user_routes import user_router
@@ -33,7 +24,7 @@ db = client['stock_market']
 
 users_collection = db["user"] 
 stock_collection = db['stock']
-stock_price_collection = db['stock_price']
+# stock_price_collection = db['stock_price']
 stock_holding_collection = db['stock_holding']
 transaction_collection = db['transaction']
 history_collection = db['history_collection']
@@ -53,22 +44,21 @@ templates = Jinja2Templates(directory="templates")
 def root():
     return RedirectResponse(url="/login")
 
+
 def get_real_time_data(symbols):
-    print('get_real_time_data')
     try:
-        tickers = yf.download(symbols, period="3d", interval="1m")['Close'].iloc[-1]
+        tickers = yf.download(symbols, period="1d", interval="1m")['Close'].iloc[-1]
         return {symbol: round(tickers[symbol], 6) for symbol in symbols}
     except Exception as e:
         return {"error": str(e)}
 
+
 @app.get("/index")
 def index(request: Request):
-    print('Index:', request.session.get('user_id'))
-
     rows = stock_collection.find({}, {"symbol": 1, "name": 1})
-    print(rows)
 
     symbols = ["AAPL", "AMZN", "TSLA", "MSFT", "META"]
+
     print(get_real_time_data(symbols))
 
     # Return the template response
@@ -89,44 +79,52 @@ def stock_details(request: Request, symbol: str):
         return {"error": "Stock not found"}
 
     # Fetch stock price history for the given stock_id, sorted by latest date
-    prices = list(stock_price_collection.find({"stock_id": stock["symbol"]}).sort("date", -1))
+    # prices = list(stock_price_collection.find({"stock_id": stock["symbol"]}).sort("date", -1))
 
-    for price in prices:
-        if "_id" in price:
-            price["_id"] = str(price["_id"])
+    # for price in prices:
+    #     if "_id" in price:
+    #         price["_id"] = str(price["_id"])
 
-    print(request.session)
+
+    histories = list(history_collection.find({"Stock Name": symbol}).sort("Date", -1))
+    
+    for history in histories:
+        if "_id" in history:
+            history["_id"] = str(history["_id"])
+            
     return templates.TemplateResponse("stock_details.html", {
         "request": request,
         "stock": stock,
-        "bars": prices,
+        "histories": histories
+        # "bars": prices,
     })
+
 
 # use for redirect page...
 @app.get("/trade_stocks")
 def trade_stocks(request:Request):
     return templates.TemplateResponse("trade_stocks.html",{"request":request})
 
+
 # use for fetching real time data for buying and selling...   
 @app.get("/get-stock-price/{symbol}")
 def get_stock_price(request: Request, symbol:str):
-    print("get_stock_price", symbol)
 
     try:
         data = yf.download(symbol, period="1d", interval="1m")  # Fetch stock data
         close_price = data['Close'].iloc[-1]  # Get the latest closing price
-        print("close_price", close_price[symbol])
+
         return {"price": round(close_price[symbol], 2)}
     except Exception as e:
         return {"error": str(e)}
 
+
 @app.post("/buy")
 def buy(request: Request, symbol: str = Form(...), quantity: int = Form(...), price: float = Form(...)):
     user_id = request.session.get("user_id")
-    print("post:",  request.session)
+
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     # user = user.to_list()[0]
-    print("user",user)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -141,7 +139,8 @@ def buy(request: Request, symbol: str = Form(...), quantity: int = Form(...), pr
 
     # Check existing stock holding
     existing_holding = stock_holding_collection.find_one({"user_id": user_id, "company_symbol": symbol})
-    print(existing_holding)
+   
+    
     if existing_holding:
         new_quantity = existing_holding["number_of_shares"] + quantity
         new_avg_price = ((existing_holding["avg_price"] * existing_holding["number_of_shares"]) + total_cost) / new_quantity
@@ -168,13 +167,14 @@ def buy(request: Request, symbol: str = Form(...), quantity: int = Form(...), pr
         "timestamp": datetime.now(),
         "profit_loss": "-"
     })
-    print(-1)
+
+    
     return {"message": "Stock purchased successfully"}
+
 
 @app.post("/sell")
 def sell(request: Request, symbol: str = Form(...), quantity: int = Form(...), price: float = Form(...)):
     user_id = request.session.get("user_id")
-    print("post:", request.session)
     
     # Fetch the user from the database
     user = users_collection.find_one({"_id": ObjectId(user_id)})
@@ -226,6 +226,7 @@ def sell(request: Request, symbol: str = Form(...), quantity: int = Form(...), p
 
     return {"message": "Stock sold successfully"}
 
+
 @app.route("/transaction-history", methods=["GET"])
 def stock_transaction_history(request: Request):
     user_id = request.session.get("user_id")
@@ -256,11 +257,12 @@ def stock_transaction_history(request: Request):
 
     return templates.TemplateResponse("transaction_history.html", {"request": request, "portfolio": portfolio_data})
 
+
 @app.get("/portfolio")
 def get_portfolio(request: Request):
     # Fetch the current user from the database 
     current_user = get_current_user(request)
-    print("current_user", current_user)
+    
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -269,21 +271,16 @@ def get_portfolio(request: Request):
     
     # Get user's stock holdings from MongoDB
     holdings = list(stock_holding_collection.find({"user_id": request.session.get("user_id")}))
-    print("holdings:", holdings)
     
     # Get current prices from MongoDB or any API
     symbols = [holding['company_symbol'] for holding in holdings]
 
-    # Fetch real data from database...
-    # current_prices = get_current_prices(symbols)
-    # print("current_price", current_prices)
 
     # Fetch data from yfinance data...
     current_prices = get_real_time_data(symbols)
-    print("current_price",current_prices)
     
     # Get stock names
-    stock_names = get_stock_names(symbols)
+    # stock_names = get_stock_names(symbols)
     
     # Calculate portfolio metrics
     portfolio = {
@@ -313,15 +310,10 @@ def get_portfolio(request: Request):
     
     # Calculate profit/loss percentage
     total_profit_loss = ((portfolio_value - user.get('cash') - total_investment) / total_investment * 100) if total_investment > 0 else 0
-    print('total_profit_loss:------', total_profit_loss)
     
     # Get recent transactions from MongoDB
     recent_transactions = list(transaction_collection.find({"user_id": request.session.get("user_id")}).sort("timestamp", -1).limit(10))
     
-    # Generate performance data for chart
-    performance_dates, performance_values = generate_performance_data()
-
-
     ########################################################################
     # Calculate profitable and losing holdings
     profitable_stocks = 0
@@ -345,27 +337,21 @@ def get_portfolio(request: Request):
         else:
             losing_stocks += 1
 
-    print("profit_loss:", profit_loss)
     
     # Data for graph (Profitable vs. Losing Holdings)
     labels = ['Profitable Holdings', 'Losing Holdings']
     data = [profitable_stocks, losing_stocks]
 
-    print(data)
-    print("total_profit_loss;", total_profit_loss)
-    
     # Render the portfolio template
     return templates.TemplateResponse("portfolio.html", {
         "request": request,
         "portfolio": portfolio,
         "current_prices": current_prices,
-        "stock_names": stock_names,
+        # "stock_names": stock_names,
         "total_investment": total_investment,
         "portfolio_value": portfolio_value,
         "profit_loss": total_profit_loss,
         "recent_transactions": recent_transactions,
-        "performance_dates": performance_dates,
-        "performance_values": performance_values,
         "labels": labels,
         "data": data
     })
@@ -373,7 +359,6 @@ def get_portfolio(request: Request):
 
 @app.route("/prediction-history", methods=["GET"])
 def model_prediction_history(request: Request):
-    print(-1)
     histories = list(history_collection.find().sort("Date", -1))
     
     for history in histories:
@@ -387,28 +372,11 @@ def model_prediction_history(request: Request):
     
 
 # Function to fetch stock names from MongoDB
-def get_stock_names(symbols: list):
-    stock_names = db.stocks.find({})
-    name_dict = {stock['symbol']: stock['name'] for stock in stock_names}
-    return name_dict
-
-# Function to generate performance data
-def generate_performance_data():
-    dates = []
-    values = []
-    base_value = 10000
-    current_value = base_value
-    
-    for i in range(30, 0, -1):
-        date = (datetime.now() - timedelta(days=i)).strftime('%b %d')
-        dates.append(date)
-        
-        # Random daily change between -2% and +2%
-        change = random.uniform(-0.02, 0.02)
-        current_value = current_value * (1 + change)
-        values.append(round(current_value, 2))
-    
-    return dates, values
+# def get_stock_names(symbols: list):
+#     stock_names = db.stocks.find({})
+#     name_dict = {stock['symbol']: stock['name'] for stock in stock_names}
+#     print(-1,name_dict)
+#     return name_dict
 
 
 def get_current_user(request: Request):

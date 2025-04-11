@@ -9,20 +9,6 @@
     <i class="search icon"></i>
 </div>
 
-<!-- Filter Section -->
-<!-- <div class="ui segment">
-        <h3 class="ui header">Filter Stocks</h3>
-        <form method="get" class="ui form">
-            <div class="field">
-                <select name="filter" class="ui dropdown">
-                    <option value="">All Stocks</option>
-                    <option {% if request.query_params.filter == 'new_closing_highs' %} selected="selected"{% endif %} value="new_closing_highs">New Closing Highs</option>
-                    <option {% if request.query_params.filter == 'new_closing_lows' %} selected="selected"{% endif %} value="new_closing_lows">New Closing Lows</option>
-                </select>
-            </div>
-            <button class="ui primary button" type="submit">Apply Filter</button>
-        </form>
-    </div> -->
 
 <!-- Stock Table -->
 <table class="ui celled striped table">
@@ -54,26 +40,6 @@
 
 <!-- JavaScript for Search -->
 <script>
-
-    // const socket = new WebSocket("ws://127.0.0.1:8000/ws/stocks");
-
-    // socket.onmessage = function (event) {
-    //     const stockPrices = JSON.parse(event.data);
-    //     console.log("Updated Prices:", stockPrices);
-
-    //     // Loop through stock prices and update the UI
-    //     for (const stockId in stockPrices) {
-    //         let priceElement = document.getElementById(`price-${stockId}`);
-    //         if (priceElement) {
-    //             priceElement.innerText = `$${stockPrices[stockId].toFixed(2)}`;
-    //         }
-    //     }
-    // };
-
-    // socket.onclose = function () {
-    //     console.log("WebSocket Connection Closed");
-    // };
-
 
     let debounceTimer;
 
